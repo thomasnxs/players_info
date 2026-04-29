@@ -41,11 +41,18 @@ class _TeamPageState extends State<TeamPage> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/home',
-                    (_) => false,
-                  ),
+                  onPressed: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                      return;
+                    }
+
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/home',
+                      (_) => false,
+                    );
+                  },
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   label: Text(
                     'Voltar',
@@ -133,6 +140,7 @@ class _RosterSection extends StatelessWidget {
                       (player) => Expanded(
                         child: PlayerShowcaseCard(
                           player: player,
+                          enableHoverZoom: true,
                           onTap: () => Navigator.pushNamed(
                             context,
                             '/member',

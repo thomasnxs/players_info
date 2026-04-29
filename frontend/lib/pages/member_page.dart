@@ -80,10 +80,8 @@ class _MemberPageState extends State<MemberPage> {
       height: 520,
       child: PlayerShowcaseCard(
         player: _member,
-        enableHoverZoom: true,
-        baseImageScale: 1.56,
-        hoverImageScale: 1.64,
-        imageYOffset: -8,
+        baseImageScale: 1,
+        imageYOffset: 0,
       ),
     );
 
