@@ -22,8 +22,9 @@ Fluxo principal:
 1. Usuario abre o app e cai na tela de autenticacao (`/auth`).
 2. Faz cadastro ou login.
 3. Vai para a home (`/home`) com carrossel de logos dos times.
-4. Clica em um time e abre a pagina do time (`/team`), com roster.
-5. Clica em um jogador e abre a pagina do jogador (`/member`) com:
+4. Abre o perfil proprio em (`/profile`) para editar nome, nick, foto e configuracoes.
+5. Clica em um time e abre a pagina do time (`/team`), com roster.
+6. Clica em um jogador e abre a pagina do jogador (`/member`) com:
    - nome, idade, funcao e time;
    - configuracoes (DPI, sens, resolucao);
    - crosshair e viewmodel.
@@ -42,7 +43,6 @@ players_info/
 Diagrama de arquitetura:
 - `docs/architecture.md`
 - `docs/architecture-drawio-guide.md`
-- `docs/architecture-drawio.drawio`
 
 ## 4) Backend (API)
 
@@ -69,6 +69,8 @@ Auth:
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me`
+- `PUT /auth/me`
+- `DELETE /auth/me`
 
 Teams (entidade pai):
 - `GET /teams`

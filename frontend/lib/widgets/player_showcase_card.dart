@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import '../models/member.dart';
 
@@ -36,35 +38,7 @@ class _PlayerShowcaseCardState extends State<PlayerShowcaseCard> {
     final url = widget.player.imageUrl;
     final fallbackUrl = url?.split('?').first;
 
-    Widget image = url == null || url.isEmpty
-        ? const Center(
-            child: Icon(Icons.person, color: Colors.white70, size: 44),
-          )
-        : Image.network(
-            url,
-            width: double.infinity,
-            height: double.infinity,
-            fit: BoxFit.contain,
-            alignment: Alignment.bottomCenter,
-            errorBuilder: (context, error, stackTrace) {
-              if (fallbackUrl?.isNotEmpty == true && fallbackUrl != url) {
-                return Image.network(
-                  fallbackUrl!,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.bottomCenter,
-                  errorBuilder: (context, error, stackTrace) => const Center(
-                    child: Icon(Icons.person, color: Colors.white70, size: 44),
-                  ),
-                );
-              }
-
-              return const Center(
-                child: Icon(Icons.person, color: Colors.white70, size: 44),
-              );
-            },
-          );
+    Widget image = _buildImage(url, fallbackUrl);
 
     image = AnimatedScale(
       duration: const Duration(milliseconds: 180),
@@ -126,5 +100,67 @@ class _PlayerShowcaseCardState extends State<PlayerShowcaseCard> {
       },
       child: clickable ? GestureDetector(onTap: widget.onTap, child: content) : content,
     );
+  }
+
+  Widget _buildImage(String? url, String? fallbackUrl) {
+    if (url == null || url.isEmpty) {
+      return const Center(
+        child: Icon(Icons.person, color: Colors.white70, size: 44),
+      );
+    }
+
+    if (url.startsWith('data:image/')) {
+      final bytes = _bytesFromDataUrl(url);
+      if (bytes == null) {
+        return const Center(
+          child: Icon(Icons.person, color: Colors.white70, size: 44),
+        );
+      }
+
+      return Image.memory(
+        bytes,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+      );
+    }
+
+    return Image.network(
+      url,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
+      errorBuilder: (context, error, stackTrace) {
+        if (fallbackUrl?.isNotEmpty == true && fallbackUrl != url) {
+          return Image.network(
+            fallbackUrl!,
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.contain,
+            alignment: Alignment.bottomCenter,
+            errorBuilder: (context, error, stackTrace) => const Center(
+              child: Icon(Icons.person, color: Colors.white70, size: 44),
+            ),
+          );
+        }
+
+        return const Center(
+          child: Icon(Icons.person, color: Colors.white70, size: 44),
+        );
+      },
+    );
+  }
+
+  Uint8List? _bytesFromDataUrl(String dataUrl) {
+    final commaIndex = dataUrl.indexOf(',');
+    if (commaIndex < 0) return null;
+    final base64Part = dataUrl.substring(commaIndex + 1);
+    try {
+      return base64Decode(base64Part);
+    } catch (_) {
+      return null;
+    }
   }
 }

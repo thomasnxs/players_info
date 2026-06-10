@@ -6,6 +6,7 @@ import '../pages/auth_page.dart';
 import '../pages/home_page.dart';
 import '../pages/member_page.dart';
 import '../pages/members_page.dart';
+import '../pages/profile_page.dart';
 import '../pages/team_page.dart';
 import 'app_state.dart';
 
@@ -50,6 +51,8 @@ class _Cs2PlayersAppState extends State<Cs2PlayersApp> {
               return MaterialPageRoute<void>(builder: (_) => const AuthPage());
             case '/members':
               return MaterialPageRoute<void>(builder: (_) => const MembersPage());
+            case '/profile':
+              return MaterialPageRoute<void>(builder: (_) => const ProfilePage());
             case '/team':
               final team = settings.arguments;
               if (team is Team) {

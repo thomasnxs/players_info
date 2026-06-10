@@ -49,6 +49,12 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         title: const Text('Home'),
         actions: [
+          TextButton.icon(
+            onPressed: () => Navigator.pushNamed(context, '/profile'),
+            icon: const Icon(Icons.person_outline),
+            label: const Text('Meu perfil'),
+          ),
+          const SizedBox(width: 6),
           TextButton(
             onPressed: () async {
               await session.clearAuth();
@@ -243,13 +249,7 @@ class _TeamLogoItem extends StatelessWidget {
                     height: 188,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-                    child: Image.asset(
-                      assetPath,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.high,
-                      errorBuilder: (context, error, stackTrace) =>
-                          _LogoFallback(label: 'erro: $assetPath'),
-                    ),
+                    child: _TeamLogoImage(team: team, assetPath: assetPath),
                   ),
                 ],
               ),
@@ -285,6 +285,40 @@ class _TeamLogoItem extends StatelessWidget {
     if (normalizedName.contains('falcons')) return 'logos_times/falcons.png';
 
     return 'logos_times/placeholder_white.png';
+  }
+}
+
+class _TeamLogoImage extends StatelessWidget {
+  const _TeamLogoImage({required this.team, required this.assetPath});
+
+  final Team team;
+  final String assetPath;
+
+  @override
+  Widget build(BuildContext context) {
+    final logoUrl = team.logoUrl?.trim();
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      return Image.network(
+        logoUrl,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) => Image.asset(
+          assetPath,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (context, error, stackTrace) =>
+              _LogoFallback(label: 'erro: $assetPath'),
+        ),
+      );
+    }
+
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) =>
+          _LogoFallback(label: 'erro: $assetPath'),
+    );
   }
 }
 

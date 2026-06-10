@@ -82,6 +82,45 @@ class AuthService {
     return user;
   }
 
+  Future<AppUser> updateMe({
+    required String token,
+    required String name,
+    required String nickname,
+    required String imageUrl,
+    required int dpi,
+    required double sensitivity,
+    required String resolution,
+    required String viewmodel,
+    required String crosshair,
+  }) async {
+    final userId = _verifyAndReadUserId(token);
+    final updated = await _users.updateProfile(
+      id: userId,
+      name: name,
+      nickname: nickname,
+      imageUrl: imageUrl,
+      dpi: dpi,
+      sensitivity: sensitivity,
+      resolution: resolution,
+      viewmodel: viewmodel,
+      crosshair: crosshair,
+    );
+
+    if (updated == null) {
+      throw AuthException(message: 'Usuario nao encontrado.', statusCode: 404);
+    }
+
+    return updated;
+  }
+
+  Future<void> deleteMe(String token) async {
+    final userId = _verifyAndReadUserId(token);
+    final deleted = await _users.deleteById(userId);
+    if (!deleted) {
+      throw AuthException(message: 'Usuario nao encontrado.', statusCode: 404);
+    }
+  }
+
   String _createToken(AppUser user) {
     final jwt = JWT(
       {'email': user.email},

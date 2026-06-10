@@ -57,6 +57,36 @@ class AuthService {
     return AppUser.fromJson(payload);
   }
 
+  Future<AppUser> updateMe({
+    required String name,
+    required String nickname,
+    required String imageUrl,
+    required int dpi,
+    required double sensitivity,
+    required String resolution,
+    required String viewmodel,
+    required String crosshair,
+  }) async {
+    final payload = await _api.putObject(
+      '/auth/me',
+      body: {
+        'name': name,
+        'nickname': nickname,
+        'image_url': imageUrl,
+        'dpi': dpi,
+        'sensitivity': sensitivity,
+        'resolution': resolution,
+        'viewmodel': viewmodel,
+        'crosshair': crosshair,
+      },
+    );
+    return AppUser.fromJson(payload);
+  }
+
+  Future<void> deleteMe() async {
+    await _api.delete('/auth/me');
+  }
+
   AuthResult _parseAuthResult(Map<String, dynamic> payload) {
     final token = payload['token']?.toString() ?? '';
     final user = payload['user'];

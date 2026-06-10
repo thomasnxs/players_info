@@ -70,6 +70,26 @@ class ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> putObject(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final response = await _request(method: 'PUT', path: path, body: body);
+    final jsonBody = _decode(response);
+    if (jsonBody is Map<String, dynamic>) {
+      return jsonBody;
+    }
+
+    throw ApiException(
+      message: 'Resposta inesperada do servidor.',
+      statusCode: response.statusCode,
+    );
+  }
+
+  Future<void> delete(String path) async {
+    await _request(method: 'DELETE', path: path);
+  }
+
   Future<http.Response> _request({
     required String method,
     required String path,
@@ -98,6 +118,16 @@ class ApiClient {
             headers: headers,
             body: jsonEncode(body ?? <String, dynamic>{}),
           );
+          break;
+        case 'PUT':
+          response = await http.put(
+            uri,
+            headers: headers,
+            body: jsonEncode(body ?? <String, dynamic>{}),
+          );
+          break;
+        case 'DELETE':
+          response = await http.delete(uri, headers: headers);
           break;
         default:
           throw UnsupportedError('Método $method não suportado');

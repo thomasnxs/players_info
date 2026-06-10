@@ -207,14 +207,7 @@ class _TeamIdentity extends StatelessWidget {
                     ],
                   ),
                 ),
-                Image.asset(
-                  _assetForTeam(team),
-                  width: 92,
-                  height: 92,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox(width: 92, height: 92),
-                ),
+                _TeamLogoImage(team: team),
               ],
             ),
           ),
@@ -263,6 +256,44 @@ class _CoachCard extends StatelessWidget {
           height: 1,
         ),
       ),
+    );
+  }
+}
+
+class _TeamLogoImage extends StatelessWidget {
+  const _TeamLogoImage({required this.team});
+
+  final Team team;
+
+  @override
+  Widget build(BuildContext context) {
+    final assetPath = _assetForTeam(team);
+    final logoUrl = team.logoUrl?.trim();
+
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      return Image.network(
+        logoUrl,
+        width: 92,
+        height: 92,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => Image.asset(
+          assetPath,
+          width: 92,
+          height: 92,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              const SizedBox(width: 92, height: 92),
+        ),
+      );
+    }
+
+    return Image.asset(
+      assetPath,
+      width: 92,
+      height: 92,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) =>
+          const SizedBox(width: 92, height: 92),
     );
   }
 }

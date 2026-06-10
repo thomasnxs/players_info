@@ -17,9 +17,38 @@ class Database {
         name TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
+        nickname TEXT,
+        image_url TEXT,
+        dpi INTEGER,
+        sensitivity DOUBLE PRECISION,
+        resolution TEXT,
+        viewmodel TEXT,
+        crosshair TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     ''');
+
+    await pool.execute(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname TEXT;',
+    );
+    await pool.execute(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS image_url TEXT;',
+    );
+    await pool.execute(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS dpi INTEGER;',
+    );
+    await pool.execute(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS sensitivity DOUBLE PRECISION;',
+    );
+    await pool.execute(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS resolution TEXT;',
+    );
+    await pool.execute(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS viewmodel TEXT;',
+    );
+    await pool.execute(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS crosshair TEXT;',
+    );
 
     await pool.execute('''
       CREATE TABLE IF NOT EXISTS teams (
@@ -77,6 +106,7 @@ class Database {
     await _seedTeamsAndMembers();
     await _syncTeamLogos();
     await _syncMemberProfiles();
+    await _syncSeedMembersExact();
   }
 
   Future<void> close() async {
@@ -84,12 +114,6 @@ class Database {
   }
 
   Future<void> _seedTeamsAndMembers() async {
-    final countResult = await pool.execute(
-      'SELECT COUNT(*) AS count FROM teams',
-    );
-    final count = _toInt(countResult.first.toColumnMap()['count']);
-    if (count > 0) return;
-
     await pool.runTx((session) async {
       final teamIdByName = <String, int>{};
 
@@ -98,6 +122,11 @@ class Database {
           Sql.named('''
             INSERT INTO teams (name, tag, region, ranking, logo_url)
             VALUES (@name, @tag, @region, @ranking, @logo_url)
+            ON CONFLICT (name) DO UPDATE SET
+              tag = EXCLUDED.tag,
+              region = EXCLUDED.region,
+              ranking = EXCLUDED.ranking,
+              logo_url = EXCLUDED.logo_url
             RETURNING id
           '''),
           parameters: {
@@ -121,6 +150,17 @@ class Database {
           Sql.named('''
             INSERT INTO members (team_id, full_name, nickname, age, role, image_url, in_game_role, dpi, sensitivity, resolution, viewmodel, crosshair)
             VALUES (@team_id, @full_name, @nickname, @age, @role, @image_url, @in_game_role, @dpi, @sensitivity, @resolution, @viewmodel, @crosshair)
+            ON CONFLICT (team_id, nickname) DO UPDATE SET
+              full_name = EXCLUDED.full_name,
+              age = EXCLUDED.age,
+              role = EXCLUDED.role,
+              image_url = EXCLUDED.image_url,
+              in_game_role = EXCLUDED.in_game_role,
+              dpi = EXCLUDED.dpi,
+              sensitivity = EXCLUDED.sensitivity,
+              resolution = EXCLUDED.resolution,
+              viewmodel = EXCLUDED.viewmodel,
+              crosshair = EXCLUDED.crosshair
           '''),
           parameters: {
             'team_id': teamId,
@@ -190,6 +230,114 @@ class Database {
     }
   }
 
+  Future<void> _syncSeedMembersExact() async {
+    final membersByTeam = <String, List<_SeedMember>>{};
+    for (final member in _seedMembers) {
+      membersByTeam.putIfAbsent(member.teamName, () => []).add(member);
+    }
+
+    for (final team in _seedTeams) {
+      final seedMembers = membersByTeam[team.name];
+      if (seedMembers == null || seedMembers.isEmpty) {
+        continue;
+      }
+
+      final existingRows = await pool.execute(
+        Sql.named('''
+          SELECT m.id, m.nickname
+          FROM members m
+          JOIN teams t ON t.id = m.team_id
+          WHERE t.name = @team_name
+        '''),
+        parameters: {'team_name': team.name},
+      );
+
+      final canonicalNicknames =
+          seedMembers.map((member) => member.nickname).toSet();
+
+      for (final row in existingRows) {
+        final map = row.toColumnMap();
+        final nickname = (map['nickname'] ?? '').toString();
+        if (!canonicalNicknames.contains(nickname)) {
+          await pool.execute(
+            Sql.named('DELETE FROM members WHERE id = @id'),
+            parameters: {'id': map['id']},
+          );
+        }
+      }
+
+      final teamIdRows = await pool.execute(
+        Sql.named('SELECT id FROM teams WHERE name = @team_name'),
+        parameters: {'team_name': team.name},
+      );
+      if (teamIdRows.isEmpty) {
+        continue;
+      }
+
+      final teamId = _toInt(teamIdRows.first.toColumnMap()['id']);
+
+      for (final member in seedMembers) {
+        await pool.execute(
+          Sql.named('''
+            INSERT INTO members (
+              team_id,
+              full_name,
+              nickname,
+              age,
+              role,
+              image_url,
+              in_game_role,
+              dpi,
+              sensitivity,
+              resolution,
+              viewmodel,
+              crosshair
+            )
+            VALUES (
+              @team_id,
+              @full_name,
+              @nickname,
+              @age,
+              @role,
+              @image_url,
+              @in_game_role,
+              @dpi,
+              @sensitivity,
+              @resolution,
+              @viewmodel,
+              @crosshair
+            )
+            ON CONFLICT (team_id, nickname) DO UPDATE SET
+              full_name = EXCLUDED.full_name,
+              age = EXCLUDED.age,
+              role = EXCLUDED.role,
+              image_url = EXCLUDED.image_url,
+              in_game_role = EXCLUDED.in_game_role,
+              dpi = EXCLUDED.dpi,
+              sensitivity = EXCLUDED.sensitivity,
+              resolution = EXCLUDED.resolution,
+              viewmodel = EXCLUDED.viewmodel,
+              crosshair = EXCLUDED.crosshair
+          '''),
+          parameters: {
+            'team_id': teamId,
+            'full_name': member.fullName,
+            'nickname': member.nickname,
+            'age': member.age,
+            'role': member.role,
+            'image_url': member.imageUrl,
+            'in_game_role': member.inGameRole,
+            'dpi': member.dpi,
+            'sensitivity': member.sensitivity,
+            'resolution': member.resolution,
+            'viewmodel': member.viewmodel,
+            'crosshair': member.crosshair,
+          },
+        );
+      }
+    }
+  }
+
   static int _toInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -243,7 +391,7 @@ class _SeedMember {
   final String crosshair;
 }
 
-const _seedTeams = [
+  const _seedTeams = [
   _SeedTeam(
     name: 'Vitality',
     tag: 'VIT',
@@ -251,6 +399,14 @@ const _seedTeams = [
     ranking: 1,
     logoUrl:
         'https://img-cdn.hltv.org/teamlogo/yeXBldn9w8LZCgdElAenPs.png?ixlib=java-2.1.0&w=50&s=15eaba0b75250065d20162d2cb05e3e6',
+  ),
+  _SeedTeam(
+    name: 'MOUZ',
+    tag: 'MOUZ',
+    region: 'EU',
+    ranking: 6,
+    logoUrl:
+        'https://img-cdn.hltv.org/teamlogo/IejtXpquZnE8KqYPB1LNKw.svg?ixlib=java-2.1.0&s=7fd33b8def053fbfd8fdbb58e3bdcd3c',
   ),
   _SeedTeam(
     name: 'Natus Vincere',
@@ -369,6 +525,84 @@ const _seedMembers = [
     role: 'coach',
     fullName: 'XTQZZZ',
     age: 20,
+    crosshair: '',
+  ),
+  _SeedMember(
+    teamName: 'MOUZ',
+    nickname: 'torzsi',
+    role: 'player',
+    fullName: 'Ádám Torzsás',
+    age: 23,
+    inGameRole: 'Sniper',
+    dpi: 400,
+    sensitivity: 1.0,
+    resolution: '1280x960 (4:3 Stretched)',
+    viewmodel:
+        'viewmodel_fov 68; viewmodel_offset_x 2.5; viewmodel_offset_y 0; viewmodel_offset_z -1.5; viewmodel_presetpos 3',
+    crosshair: 'CSGO-TORZSI-AAAAA-BBBBB-CCCCC-DDDDD',
+  ),
+  _SeedMember(
+    teamName: 'MOUZ',
+    nickname: 'Brollan',
+    role: 'player',
+    fullName: 'Ludvig Brolin',
+    age: 23,
+    inGameRole: 'IGL',
+    dpi: 400,
+    sensitivity: 1.2,
+    resolution: '1280x960 (4:3 Stretched)',
+    viewmodel:
+        'viewmodel_fov 68; viewmodel_offset_x 2.5; viewmodel_offset_y 0; viewmodel_offset_z -1.5; viewmodel_presetpos 3',
+    crosshair: 'CSGO-BROLLAN-AAAAA-BBBBB-CCCCC-DDDDD',
+  ),
+  _SeedMember(
+    teamName: 'MOUZ',
+    nickname: 'Jimpphat',
+    role: 'player',
+    fullName: 'Jimi Salo',
+    age: 19,
+    inGameRole: 'Second Entry',
+    dpi: 400,
+    sensitivity: 1.6,
+    resolution: '1280x960 (4:3 Stretched)',
+    viewmodel:
+        'viewmodel_fov 68; viewmodel_offset_x 2.5; viewmodel_offset_y 0; viewmodel_offset_z -1.5; viewmodel_presetpos 3',
+    crosshair: 'CSGO-JIMP-AAAAA-BBBBB-CCCCC-DDDDD',
+  ),
+  _SeedMember(
+    teamName: 'MOUZ',
+    nickname: 'xertioN',
+    role: 'player',
+    fullName: 'Dorian Berman',
+    age: 22,
+    inGameRole: 'Entry Fragger',
+    dpi: 400,
+    sensitivity: 1.1,
+    resolution: '1280x960 (4:3 Stretched)',
+    viewmodel:
+        'viewmodel_fov 68; viewmodel_offset_x 2.5; viewmodel_offset_y 0; viewmodel_offset_z -1.5; viewmodel_presetpos 3',
+    crosshair: 'CSGO-XERTION-AAAAA-BBBBB-CCCCC-DDDDD',
+  ),
+  _SeedMember(
+    teamName: 'MOUZ',
+    nickname: 'Spinx',
+    role: 'player',
+    fullName: 'Lotan Giladi',
+    age: 25,
+    inGameRole: 'Rifler',
+    dpi: 400,
+    sensitivity: 1.25,
+    resolution: '1280x960 (4:3 Stretched)',
+    viewmodel:
+        'viewmodel_fov 68; viewmodel_offset_x 2.5; viewmodel_offset_y 0; viewmodel_offset_z -1.5; viewmodel_presetpos 3',
+    crosshair: 'CSGO-SPINX-AAAAA-BBBBB-CCCCC-DDDDD',
+  ),
+  _SeedMember(
+    teamName: 'MOUZ',
+    nickname: 'sycrone',
+    role: 'coach',
+    fullName: 'Dennis Nielsen',
+    age: 30,
     crosshair: '',
   ),
   _SeedMember(

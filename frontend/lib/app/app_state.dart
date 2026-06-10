@@ -45,6 +45,13 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateUser(AppUser user) async {
+    final prefs = await SharedPreferences.getInstance();
+    _user = user;
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+    notifyListeners();
+  }
+
   Future<void> clearAuth() async {
     final prefs = await SharedPreferences.getInstance();
     _token = null;

@@ -1,0 +1,37 @@
+flowchart LR
+  U[Usuario] --> F[Frontend Flutter Web]
+
+  F -->|HTTP JSON| A[API Dart + Shelf]
+  I[Insomnia] -->|Testes HTTP JSON| A
+
+  subgraph Frontend
+    F --> FA[Auth Page]
+    F --> FP[Profile Page]
+    F --> FH[Home Page]
+    F --> FT[Team Page]
+    F --> FM[Member Page]
+    F --> FS[Services / ApiClient]
+    F --> MODELS[Models: AppUser, Team, Member]
+  end
+
+  subgraph Backend
+    A --> R1[Auth Routes]
+    A --> R2[Team Routes]
+    A --> R3[Member Routes]
+
+    R1 --> S1[Auth Service]
+    R2 --> RE1[Team Repository]
+    R3 --> RE2[Member Repository]
+
+    S1 --> RE3[User Repository]
+    RE1 --> DB[(Neon Postgres)]
+    RE2 --> DB
+    RE3 --> DB
+  end
+
+  subgraph Banco
+    DB --> T1[users]
+    DB --> T2[teams]
+    DB --> T3[members]
+    T2 -->|1:N| T3
+  end
